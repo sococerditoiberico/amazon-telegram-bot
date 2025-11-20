@@ -3,22 +3,23 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import Updater, MessageHandler, Filters, CallbackContext, CommandHandler
-
-# Bot token desde variable de entorno
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, CommandHandler, filters
 
 # URL de tu API en Render
 API_URL = "https://amazon-backend-47xw.onrender.com/products"
 
-# Afiliado Amazon
+# Tag de afiliado
 AFFILIATE_TAG = "crdt25-21"
 
-# Regex para extraer ASIN
+# Token del bot (Render lo mete como variable de entorno)
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+
+# Regex para extraer ASIN de enlaces o texto
 ASIN_REGEX = re.compile(r"(?:dp/|dp%2F|product/|ASIN=)([A-Z0-9]{10})", re.IGNORECASE)
 
 
 def extract_asin(text):
+    """Extrae el ASIN de un link o texto simple."""
     match = ASIN_REGEX.search(text)
     if match:
         return match.group(1).upper()
@@ -30,10 +31,12 @@ def extract_asin(text):
 
 
 def scrape_amazon(asin):
+    """Scrapea título, precio e imagen desde Amazon."""
     url = f"https://www.amazon.es/dp/{asin}"
     headers = {"User-Agent": "Mozilla/5.0"}
 
     r = requests.get(url, headers=headers)
+
     if r.status_code != 200:
         return None
 
@@ -61,46 +64,52 @@ def scrape_amazon(asin):
 
 
 def send_to_api(product):
+    """Envía el producto al backend."""
     r = requests.post(API_URL, json=product)
     return r.json()
 
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Hola! Envíame un ASIN o un enlace de Amazon y lo procesaré 🚀")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Hola! Envíame un ASIN o enlace de Amazon y lo convierto para tu web 🚀")
 
 
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     asin = extract_asin(text)
 
     if not asin:
-        update.message.reply_text("❌ No encontré un ASIN válido. Envíame un enlace o ASIN de Amazon.")
+        await update.message.reply_text("❌ Ese texto no contiene un ASIN válido.")
         return
 
-    update.message.reply_text(f"🔍 Buscando producto {asin}...")
+    await update.message.reply_text(f"🔍 Buscando información de {asin}...")
 
     product = scrape_amazon(asin)
+
     if not product:
-        update.message.reply_text("⚠️ No pude obtener datos del producto.")
+        await update.message.reply_text("⚠️ No pude obtener los datos del producto.")
         return
 
-    update.message.reply_text("📡 Enviando a la web...")
+    await update.message.reply_text("📡 Subiendo a la web...")
 
     response = send_to_api(product)
 
-    update.message.reply_text(f"✅ Producto añadido!\n🔗 {response['product_page']}")
+    # Respuesta final
+    await update.message.reply_text(
+        f"✅ Producto añadido correctamente!\n"
+        f"🔗 Enlace en tu web: {response['product_page']}"
+    )
 
 
-def main():
-    updater = Updater(TELEGRAM_TOKEN, use_context=True)
+async def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text, handle_message))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    updater.start_polling()
-    updater.idle()
+    await app.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
+
