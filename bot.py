@@ -11,11 +11,14 @@ from telegram.ext import (
     filters
 )
 
-API_URL = "https://amazon-backend-47xw.onrender.com/products"
+# TU BACKEND EN RENDER:
+API_URL = "https://amazon-backend-iy2x.onrender.com/products"
 AFFILIATE_TAG = "crdt25-21"
 
+# Token de Telegram desde variables de entorno
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
+# Regex para extraer ASIN
 ASIN_REGEX = re.compile(r"(?:dp/|product/|ASIN=)([A-Z0-9]{10})", re.IGNORECASE)
 
 
