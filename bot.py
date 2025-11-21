@@ -4,7 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import (
-    Application,
     ApplicationBuilder,
     ContextTypes,
     CommandHandler,
@@ -47,7 +46,10 @@ def scrape_amazon(asin):
     image_tag = soup.find(id="landingImage")
     image_url = image_tag.get("src") if image_tag else None
 
-    price_tag = soup.find(id="priceblock_ourprice") or soup.find(id="priceblock_dealprice")
+    price_tag = (
+        soup.find(id="priceblock_ourprice") or
+        soup.find(id="priceblock_dealprice")
+    )
     price = price_tag.get_text(strip=True) if price_tag else "No disponible"
 
     affiliate_url = f"https://www.amazon.es/dp/{asin}/?tag={AFFILIATE_TAG}"
@@ -82,7 +84,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"🔍 Buscando información de {asin}...")
 
     product = scrape_amazon(asin)
-    if not product:
+    if product is None:
         await update.message.reply_text("⚠️ No pude obtener los datos del producto.")
         return
 
@@ -101,7 +103,7 @@ async def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("Bot empezando… 🚀")
+    print("Bot iniciado! 🚀")
     await app.run_polling()
 
 
