@@ -1,4 +1,7 @@
-python-telegram-bot==20.7
-httpx==0.25.2
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-dotenv
 requests
 beautifulsoup4
